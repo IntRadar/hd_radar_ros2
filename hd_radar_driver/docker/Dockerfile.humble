@@ -1,0 +1,26 @@
+FROM osrf/ros:humble-desktop
+
+SHELL ["/bin/bash", "-c"]
+RUN apt-get update && apt-get install -y \
+    git python3-colcon-common-extensions \
+    ros-humble-rviz2 \
+    ros-humble-tf2-ros \
+    libtclap-dev \
+    iproute2 \
+    net-tools \
+    ros-humble-rmw-cyclonedds-cpp \
+    && rm -rf /var/lib/apt/lists/*
+ARG DOCKER_USER=default_user
+RUN adduser $DOCKER_USER
+USER $DOCKER_USER 
+WORKDIR /home/$DOCKER_USER/ros2_ws
+RUN mkdir -p /home/$DOCKER_USER/ros2_ws/src \
+    && cd /home/$DOCKER_USER/ros2_ws/src \ 
+    && git clone https://github.com/IntRadar/hd_radar_ros2.git
+RUN cd /home/$DOCKER_USER/ros2_ws && source /opt/ros/humble/setup.bash \
+    && colcon build --packages-select hd_radar_interfaces 
+RUN cd /home/$DOCKER_USER/ros2_ws && source /opt/ros/humble/setup.bash \
+    && source ~/ros2_ws/install/setup.bash \
+    && colcon build --packages-select hd_radar_driver 
+RUN echo "source /opt/ros/humble/setup.bash">> ~/.bashrc
+RUN echo "source /home/$DOCKER_USER/ros2_ws/install/setup.bash">> ~/.bashrc

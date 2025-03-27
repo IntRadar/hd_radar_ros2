@@ -1,0 +1,8 @@
+uint16 sta_threshold 13
+uint16 sta_azm_sense 16
+int16 sta_rcs_filter -48
+uint16 dyn_threshold 13
+uint16 dyn_azm_sense 16
+int16 dyn_rcs_filter -48
+---
+bool success
