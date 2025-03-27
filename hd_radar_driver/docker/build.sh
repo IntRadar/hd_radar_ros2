@@ -6,11 +6,9 @@ reset=`tput sgr0`
 
 path="/home/docker_radar/colcon_ws/src"
 tag="1.0.0"
-arch=$(uname -m)
 
 dockerfile="Dockerfile.humble"
-image_name="humble/hd_radar"
-
+image_name="intradar/hd_radar_ros2"
 
 echo ${green}"Building image from Dockerfile: ${violet}$dockerfile"${reset};
 docker build . --no-cache\

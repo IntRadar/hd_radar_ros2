@@ -1,7 +1,6 @@
 #!/bin/bash
 
-arch=$(uname -m)
-image_name="humble/hd_radar"
+image_name="intradar/hd_radar_ros2"
 tag="1.0.0"
 container_name="hd_radar"
 
