@@ -2,11 +2,10 @@
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
   <name>hd_radar_interfaces</name>
-  <version>1.0.0</version>
-  <description>TODO: Package description</description>
+  <version>1.1.0</version>
+  <description>ROS2 node that has definition of the interfaces from the HD Radar Sensor</description>
   <maintainer email="integrant@todo.todo">integrant</maintainer>
-  <license>TODO: License declaration</license>
-
+  <license>BSD-3</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
   

@@ -7,6 +7,8 @@
 #include "hd_radar_driver/hd_radar_structs.hpp"
 #include "crc16/crc16_ccitt.hpp"
 
+using namespace sensor_msgs::msg;
+
 class HdRadarPcl
 {
 public:
@@ -35,15 +37,16 @@ private:
     uint32_t pcl_pnt_received_{0};
     int64_t pcl_cur_frame_{-1};
     int64_t pcl_cur_cloud_{-1};
-    std::vector<pcl_data_t> pcl_pnts_in_frame_;
+    std::vector<udp_pcl_data_t> pcl_pnts_in_frame_;
+    uint64_t time_stamp_radar_;
     rclcpp::Time time_stamp_pcl_;
         
     // Messages
-    msg_pcl_t msg_pcl_;
+    udp_msg_pcl_t msg_pcl_;
 
     // Publishers
-    rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pub_msg_pcl_stat_;
-    rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pub_msg_pcl_dyn_;
+    rclcpp::Publisher<PointCloud2>::SharedPtr pub_msg_pcl_stat_;
+    rclcpp::Publisher<PointCloud2>::SharedPtr pub_msg_pcl_dyn_;
 
     void PublishPcl();
     void FillPcl();

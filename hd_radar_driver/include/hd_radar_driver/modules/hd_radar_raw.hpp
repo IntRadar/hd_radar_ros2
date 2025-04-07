@@ -31,7 +31,7 @@ private:
     rclcpp::Time time_stamp_raw_;
     bool check_crc16_;
     // Messages
-    msg_raw_t msg_raw_;
+    udp_msg_raw_t msg_raw_;
 
     int64_t raw_cur_frame_{0};
     int64_t raw_cur_subframe_{0};

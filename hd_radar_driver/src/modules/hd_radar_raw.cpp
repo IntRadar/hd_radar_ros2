@@ -11,7 +11,7 @@ void HdRadarRaw::ParseRaw(char * buffer, size_t buf_len)
 
     size_t udp_total_reserved = 0;
 
-    memset(&msg_raw_, 0, sizeof(msg_raw_t));
+    memset(&msg_raw_, 0, sizeof(udp_msg_raw_t));
     memcpy(&msg_raw_, buffer, static_cast<size_t>(buf_len));
     // memset(&buffer_, 0, sizeof(msg_raw_t));
 

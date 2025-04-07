@@ -38,7 +38,7 @@ private:
     bool check_crc16_;
 
     // Messages
-    msg_heat_t msg_heat_;
+    udp_msg_heat_t msg_heat_;
 
     std::vector<float> heat_full_;
     int64_t heat_cur_frame_{-1};

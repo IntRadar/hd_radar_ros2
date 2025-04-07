@@ -6,10 +6,12 @@ sensors:
         receive_port: 25200
         send_port: 35200
         check_crc16: false
+        can_device_id: "can0"
     # sensor_1:
     #     host_ip: "192.168.1.100"
     #     sensor_ip: "192.168.1.50"
     #     multicast_ip: "239.168.1.50"
-    #     receive_port: 25205
-    #     send_port: 35205
-    #     check_crc16: true
+    #     receive_port: 25200
+    #     send_port: 35200
+    #     check_crc16: false
+    #     can_device_id: "can0"

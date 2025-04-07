@@ -19,6 +19,7 @@ add_executable(
   src/modules/hd_radar_pcl.cpp
   src/modules/hd_radar_raw.cpp
   src/modules/hd_radar_heat.cpp
+  src/modules/hd_radar_can.cpp
   )
 ament_target_dependencies(
   hd_radar_node
@@ -28,6 +29,19 @@ ament_target_dependencies(
   cv_bridge
   hd_radar_interfaces
   )
+
+ament_export_dependencies(
+  rclcpp
+  sensor_msgs
+  # LibSeriale
+)
+
+target_link_libraries(hd_radar_node
+  ${rclcpp_LIBRARIES}
+  ${sensor_msgs_LIBRARIES}
+  # ${LibSerial_LIBRARIES}
+)
+
 install(TARGETS 
   hd_radar_node
   DESTINATION lib/${PROJECT_NAME}
@@ -37,7 +51,10 @@ install(DIRECTORY launch config rviz rqt
   DESTINATION share/${PROJECT_NAME}
 )
 
-include_directories(include)
+include_directories(
+  include
+  # /usr/include/libserial
+  )
 ament_export_include_directories(include)
 
 if(BUILD_TESTING)

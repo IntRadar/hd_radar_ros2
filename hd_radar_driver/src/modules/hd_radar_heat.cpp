@@ -8,7 +8,7 @@ void HdRadarHeat::BindCallback(std::function<void()> func)
 void HdRadarHeat::ParseHeat(char * buffer, size_t buf_len)
 {
 
-    memset(&msg_heat_, 0, sizeof(msg_heat_t));
+    memset(&msg_heat_, 0, sizeof(udp_msg_heat_t));
     memcpy(&msg_heat_, buffer, static_cast<size_t>(buf_len));
     // memset(&buffer_, 0, sizeof(msg_heat_t));
 

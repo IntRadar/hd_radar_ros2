@@ -46,6 +46,8 @@ def generate_nodes(context, *args, **kwargs):
 
     sens_num = len(data['sensors'].keys())
 
+    print("Sensors total: ", sens_num)
+
     message = LogInfo(msg=f'Starting {sens_num} {SENSOR_MODEL} nodes.')
 
     for i in range(0, sens_num):

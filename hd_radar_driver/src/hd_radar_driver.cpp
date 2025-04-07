@@ -30,32 +30,47 @@ void HdRadarNode::ReadParameters()
     this->declare_parameter("max_val", 1.0e4);
     img_max_val_ = this->get_parameter("max_val").as_double();
 
+
     this->declare_parameter("check_crc16", false);
     check_crc16_ = this->get_parameter("check_crc16").as_bool();
+
+    this->declare_parameter("can_device_id", "can0");
+    can_device_id_ = this->get_parameter("can_device_id").as_string();
 }
 
 void HdRadarNode::PublishPclStat() 
 {
-    RCLCPP_DEBUG(this->get_logger(), "Callback pcl stat");
+    RCLCPP_INFO(this->get_logger(), "UDP: Pcl static frame collected");
     pub_msg_pcl_stat_->publish(hd_radar_pcl_.msg_pcl2_);
 }
 
 void HdRadarNode::PublishPclDyn() 
 {
-    RCLCPP_DEBUG(this->get_logger(), "Callback pcl dyn");
+    RCLCPP_INFO(this->get_logger(), "UDP: Pcl dynamic frame collected");
     pub_msg_pcl_dyn_->publish(hd_radar_pcl_.msg_pcl2_);
+}
+
+void HdRadarNode::PublishPclStatC() 
+{
+    RCLCPP_INFO(this->get_logger(), "CAN: Pcl static frame collected");
+    pub_msg_pcl_stat_c_->publish(hd_radar_can_.msg_pcl2_);
+}
+
+void HdRadarNode::PublishPclDynC() 
+{
+    RCLCPP_INFO(this->get_logger(), "CAN: Pcl dynamic frame collected");
+    pub_msg_pcl_dyn_c_->publish(hd_radar_can_.msg_pcl2_);
 }
 
 void HdRadarNode::PublishRaw() 
 {
-    RCLCPP_DEBUG(this->get_logger(), "Callback raw ");
-    // hd_radar_raw_.msg_raw_hd_.header.frame_id = frame_id_;
+    RCLCPP_INFO(this->get_logger(), "UDP: Raw frame collected");
     pub_msg_raw_->publish(hd_radar_raw_.msg_raw_hd_);
 }
 
 void HdRadarNode::PublishHeat()
 {
-    RCLCPP_INFO(this->get_logger(), "Callback heat ");
+    RCLCPP_INFO(this->get_logger(), "UDP: Heat frame collected");
 
     pub_msg_heat_->publish(hd_radar_heat_.msg_heat_hd_);
     pub_msg_heat_img_->publish(*hd_radar_heat_.msg_img_);
@@ -65,26 +80,27 @@ void HdRadarNode::SrvGetRawClb(
     const std::shared_ptr<hd_radar_interfaces::srv::GetRaw::Request> request,
     const std::shared_ptr<hd_radar_interfaces::srv::GetRaw::Response> response)
 {
-    RCLCPP_INFO(this->get_logger(), "Service get raw");
+    RCLCPP_INFO(this->get_logger(), "SERVICE: Get raw");
     if (request->frames_num <= MAX_FRAME_BUFFER) {
         response->success = true;
         RequestRawData(request->frames_num);
-        } else if (request->frames_num == 0) {
-        RCLCPP_ERROR(this->get_logger(), "Minimum frame number is 1");
+    }
+    else if (request->frames_num == 0) {
+        RCLCPP_ERROR(this->get_logger(), "SERVICE: Minimum frame number is 1");
         response->success = false;
-        }
-        else {
-        RCLCPP_ERROR(this->get_logger(), "Maximum frame number is %d",
+    }
+    else {
+        RCLCPP_ERROR(this->get_logger(), "SERVICE: Maximum frame number is %d",
                         MAX_FRAME_BUFFER);
         response->success = false;
-        }
+    }
 }
 
 void HdRadarNode::SrvSetThrClb(
     const std::shared_ptr<hd_radar_interfaces::srv::SetThr::Request> request,
     const std::shared_ptr<hd_radar_interfaces::srv::SetThr::Response> response)
 {
-    RCLCPP_INFO(this->get_logger(), "Service set thresholds");
+    RCLCPP_INFO(this->get_logger(), "SERVICE: Set thresholds");
     SendThrData(request->sta_threshold, request->sta_azm_sense,
         request->sta_rcs_filter, request->dyn_threshold,
         request->dyn_azm_sense, request->dyn_rcs_filter);
@@ -95,7 +111,7 @@ void HdRadarNode::SrvSetVelClb(
     const std::shared_ptr<hd_radar_interfaces::srv::SetVel::Request> request,
     const std::shared_ptr<hd_radar_interfaces::srv::SetVel::Response> response)
 {
-    RCLCPP_INFO(this->get_logger(), "Service set velocity");
+    RCLCPP_INFO(this->get_logger(), "SERVICE: Set velocity");
     SendVelData(request->velocity, request->hold_time);
     response->success = true;
 }
@@ -104,20 +120,21 @@ void HdRadarNode::SrvSetModeClb(
     const std::shared_ptr<hd_radar_interfaces::srv::SetMode::Request> request,
     const std::shared_ptr<hd_radar_interfaces::srv::SetMode::Response> response)
 {
-    RCLCPP_INFO(this->get_logger(), "Service set mode");
+    RCLCPP_INFO(this->get_logger(), "SERVICE: Set mode");
     SendModeData(request->mode, request->test_source);
     response->success = true;
 }
 
 void HdRadarNode::RequestRawData(uint8_t frames_to_write)
 {
-    get_raw_t send_packet;
+    udp_get_raw_t send_packet;
 
-    send_packet.pre_header.version = PROTOCOL_VER;
+    send_packet.pre_header.version = UDP_PROTOCOL_VER;
     send_packet.pre_header.msg_id  = GET_RAW;
     send_packet.pre_header.length  = sizeof(send_packet);
 
-    RCLCPP_INFO(this->get_logger(), "Requesting %d frames", frames_to_write);
+    RCLCPP_INFO(this->get_logger(), "SERVICE: Requesting %d frames",
+                 frames_to_write);
     
     send_packet.raw_args.raw_frame_num = static_cast<uint16_t>(frames_to_write);
     UdpClientSend((char *)&send_packet, sizeof(send_packet));   
@@ -127,9 +144,9 @@ void HdRadarNode::SendThrData(uint16_t sta_threshold,
      uint16_t sta_azm_sense, int16_t sta_rcs_filter, uint16_t dyn_threshold,
      uint16_t dyn_azm_sense, int16_t dyn_rcs_filter)
 {
-    msg_arg_thr_t send_packet;
+    udp_msg_arg_thr_t send_packet;
 
-    send_packet.pre_header.version = PROTOCOL_VER;
+    send_packet.pre_header.version = UDP_PROTOCOL_VER;
     send_packet.pre_header.msg_id  = SET_THR;
     send_packet.pre_header.length  = sizeof(send_packet);
     send_packet.args.sta_threshold = sta_threshold;
@@ -139,37 +156,37 @@ void HdRadarNode::SendThrData(uint16_t sta_threshold,
     send_packet.args.dyn_azm_sense = dyn_azm_sense;
     send_packet.args.dyn_rcs_filter = dyn_rcs_filter;
 
-    RCLCPP_INFO(this->get_logger(), "Sending thresholds parameters");
+    RCLCPP_INFO(this->get_logger(), "SERVICE: Sending thresholds parameters");
 
     UdpClientSend((char *)&send_packet, sizeof(send_packet));   
 }
 
 void HdRadarNode::SendVelData(float velocity, uint32_t hold_time)
 {
-    msg_arg_vel_t send_packet;
+    udp_msg_arg_vel_t send_packet;
 
-    send_packet.pre_header.version = PROTOCOL_VER;
+    send_packet.pre_header.version = UDP_PROTOCOL_VER;
     send_packet.pre_header.msg_id  = SET_VEL;
     send_packet.pre_header.length  = sizeof(send_packet);
     send_packet.args.velocity = velocity;
     send_packet.args.hold_time = hold_time;
 
-    RCLCPP_INFO(this->get_logger(), "Sending velocity parameters");
+    RCLCPP_INFO(this->get_logger(), "SERVICE: Sending velocity parameters");
     
     UdpClientSend((char *)&send_packet, sizeof(send_packet));   
 }
 
 void HdRadarNode::SendModeData(uint8_t mode, uint8_t test_source)
 {
-    msg_arg_mode_t send_packet;
+    udp_msg_arg_mode_t send_packet;
 
-    send_packet.pre_header.version = PROTOCOL_VER;
+    send_packet.pre_header.version = UDP_PROTOCOL_VER;
     send_packet.pre_header.msg_id  = SET_MODE;
     send_packet.pre_header.length  = sizeof(send_packet);
     send_packet.args.mode = mode;
     send_packet.args.test_source = test_source;
 
-    RCLCPP_INFO(this->get_logger(), "Sending mode parameters");
+    RCLCPP_INFO(this->get_logger(), "SERVICE: Sending mode parameters");
     
     UdpClientSend((char *)&send_packet, sizeof(send_packet));   
 }
@@ -177,112 +194,152 @@ void HdRadarNode::SendModeData(uint8_t mode, uint8_t test_source)
 void HdRadarNode::UdpServerInit()
 {
     // Creating socket
-    if ((sock_server_.fd = socket(AF_INET, SOCK_DGRAM, 0)) < 0 ) {
-        RCLCPP_INFO(this->get_logger(), "Socket creation failed");
+    if ((udp_sock_srv_.fd = socket(AF_INET, SOCK_DGRAM, 0)) < 0 ) {
+        RCLCPP_ERROR(this->get_logger(), "UDP: Socket creation failed");
         exit(EXIT_FAILURE);
     }
-    memset(&sock_server_.self_addr, 0, sizeof(sock_server_.self_addr));
-    memset(&sock_server_.dest_addr, 0, sizeof(sock_server_.dest_addr));
+    memset(&udp_sock_srv_.self_addr, 0, sizeof(udp_sock_srv_.self_addr));
+    memset(&udp_sock_srv_.dest_addr, 0, sizeof(udp_sock_srv_.dest_addr));
 
     // Filling server information
-    sock_server_.self_addr.sin_family = AF_INET;
-    sock_server_.self_addr.sin_addr.s_addr = inet_addr(host_ip_.c_str());
-    sock_server_.self_addr.sin_port = htons(receive_port_);
-
-    // u_int yes = 1;
-    // if (setsockopt(sock_server_.fd, SOL_SOCKET, SO_REUSEADDR,
-    //     (char*) &yes, sizeof(yes)) < 0){
-    //     RCLCPP_ERROR(this->get_logger(), "Reusing ADDR failed");
-    //   }
+    udp_sock_srv_.self_addr.sin_family = AF_INET;
+    udp_sock_srv_.self_addr.sin_addr.s_addr = inet_addr(host_ip_.c_str());
+    udp_sock_srv_.self_addr.sin_port = htons(receive_port_);
 
     // Bind socket
-    RCLCPP_INFO(this->get_logger(), "Bind server socket ip:%s port:%d", host_ip_.c_str(), PORT_RECEIVE);
-    if ( bind(sock_server_.fd, (const struct sockaddr *)&sock_server_.self_addr,
-         sizeof(sock_server_.self_addr)) < 0) {
-        RCLCPP_ERROR(this->get_logger(), "Bind failed");
-        exit(EXIT_FAILURE);
+    RCLCPP_INFO(this->get_logger(), "UDP: Server socket ip:%s port:%d",
+                host_ip_.c_str(), receive_port_);
+    if ( bind(udp_sock_srv_.fd, 
+        (const struct sockaddr *)&udp_sock_srv_.self_addr,
+        sizeof(udp_sock_srv_.self_addr)) < 0) {
+        RCLCPP_ERROR(this->get_logger(), "UDP: Bind failed");
+        udp_server_retval_ = -1;
     }
 
-    
-    sock_server_.mreq.imr_interface.s_addr = inet_addr(host_ip_.c_str());
-    sock_server_.mreq.imr_multiaddr.s_addr = inet_addr(multicast_ip_.c_str());
-    if (setsockopt(sock_server_.fd, IPPROTO_IP, IP_ADD_MEMBERSHIP,
-                  (char*) &sock_server_.mreq, sizeof(sock_server_.mreq)) < 0){
-        RCLCPP_ERROR(this->get_logger(), "Setsockopt failure");
-        rclcpp::sleep_for(std::chrono::seconds(1));
+    udp_sock_srv_.mreq.imr_interface.s_addr = inet_addr(host_ip_.c_str());
+    udp_sock_srv_.mreq.imr_multiaddr.s_addr = inet_addr(multicast_ip_.c_str());
+    if (setsockopt(udp_sock_srv_.fd, IPPROTO_IP, IP_ADD_MEMBERSHIP,
+                  (char*) &udp_sock_srv_.mreq, sizeof(udp_sock_srv_.mreq)) < 0){
+        RCLCPP_ERROR(this->get_logger(), "UDP: Setsockopt failure");
+        udp_server_retval_ = -1;
     }
 }
+
 void HdRadarNode::UdpServerStart()
 {
     socklen_t len;
+    char udp_buf[UDP_BUFFER_LEN];
+    len = sizeof(udp_sock_srv_.dest_addr);
+    udp_pre_hdr_t pre_header;
+    ssize_t buf_len;
 
-    len = sizeof(sock_server_.dest_addr);
-    pre_hdr_t pre_header;
-
-    RCLCPP_INFO(this->get_logger(), "Starting server");
-    do {
-        buf_len_ = recvfrom(sock_server_.fd, (char *)buffer_, BUFFER_LEN, 
-            MSG_WAITALL, ( struct sockaddr *) &sock_server_.dest_addr, &len);
-        memcpy(&pre_header, buffer_, sizeof(pre_header));
-
-        // Check protocol version
-        if (pre_header.version != PROTOCOL_VER)
-        {
-            RCLCPP_ERROR(this->get_logger(), "Incompatible protocol version");
-            exit(EXIT_FAILURE);
+    RCLCPP_INFO(this->get_logger(), "UDP: Starting server");
+    while (rclcpp::ok()) {
+        buf_len = recvfrom(udp_sock_srv_.fd, (char *)udp_buf, UDP_BUFFER_LEN, 
+            MSG_WAITALL, ( struct sockaddr *) &udp_sock_srv_.dest_addr, &len);
+        if (buf_len < 0) {
+            RCLCPP_ERROR(this->get_logger(), "UDP: Buff len ERROR");
+            continue;
         }
 
-        switch (pre_header.msg_id)
-        {
+        memcpy(&pre_header, udp_buf, sizeof(pre_header));
+
+        // Check protocol version
+        if (pre_header.version != UDP_PROTOCOL_VER) {
+            RCLCPP_ERROR(this->get_logger(), 
+            "UDP: Incompatible protocol version: v %d.%d, expected v %d.%d",
+            ((pre_header.version&0xF0) >> 4), (pre_header.version&0x0F),
+            ((UDP_PROTOCOL_VER&0xF0) >> 4), (UDP_PROTOCOL_VER&0x0F));
+            continue;
+        }
+
+        switch (pre_header.msg_id) {
             case RAW:
-                RCLCPP_INFO(this->get_logger(),"Message type: RAW");
-                hd_radar_raw_.ParseRaw((char *)buffer_, buf_len_);
+                RCLCPP_DEBUG(this->get_logger(),"UDP: Msg type - RAW");
+                hd_radar_raw_.ParseRaw((char *)udp_buf, buf_len);
                 break;
             case PCL:
-                RCLCPP_INFO(this->get_logger(),"Message type: PCL");
-                hd_radar_pcl_.ParsePcl((char *)buffer_, buf_len_);
+                RCLCPP_DEBUG(this->get_logger(),"UDP: Msg type - PCL");
+                hd_radar_pcl_.ParsePcl((char *)udp_buf, buf_len);
                 break;
             case HEAT:
-                RCLCPP_INFO(this->get_logger(),"Message type: HEAT");
-                hd_radar_heat_.ParseHeat((char *)buffer_, buf_len_);
+                RCLCPP_DEBUG(this->get_logger(),"UDP: Msg type - HEAT");
+                hd_radar_heat_.ParseHeat((char *)udp_buf, buf_len);
                 break;
             
             default:
-                RCLCPP_ERROR(this->get_logger(), "Unknown message id %d", 
+                RCLCPP_ERROR(this->get_logger(), "UDP: Unknown msg id %d", 
                             pre_header.msg_id);
                 exit(EXIT_FAILURE);
                 break;
         }
     }
-    while (buf_len_ > 0);
 }
 void HdRadarNode::UdpClientInit()
 {
     // Creating socket
-    if ((sock_client_.fd = socket(AF_INET, SOCK_DGRAM, 0)) < 0 ) {
-        RCLCPP_INFO(this->get_logger(), "Socket creation failed");
+    if ((udp_sock_clnt_.fd = socket(AF_INET, SOCK_DGRAM, 0)) < 0 ) {
+        RCLCPP_ERROR(this->get_logger(), "UDP: Socket creation failed");
         exit(EXIT_FAILURE);
     }
 
-    memset(&sock_client_.dest_addr, 0, sizeof(sock_client_.dest_addr));
+    memset(&udp_sock_clnt_.dest_addr, 0, sizeof(udp_sock_clnt_.dest_addr));
 
     // Filling client information
-    sock_client_.dest_addr.sin_family = AF_INET;
-    sock_client_.dest_addr.sin_addr.s_addr = inet_addr(sensor_ip_.c_str());
-    sock_client_.dest_addr.sin_port = htons(send_port_);
+    udp_sock_clnt_.dest_addr.sin_family = AF_INET;
+    udp_sock_clnt_.dest_addr.sin_addr.s_addr = inet_addr(sensor_ip_.c_str());
+    udp_sock_clnt_.dest_addr.sin_port = htons(send_port_);
+
+    RCLCPP_INFO(this->get_logger(), "UDP: Client socket ip:%s port:%d",
+                sensor_ip_.c_str(), send_port_);
 
 }
 
 ssize_t HdRadarNode::UdpClientSend(char * msg, size_t len)
 {
     ssize_t status;
-    status = sendto(sock_client_.fd, (const char *)msg, len, 
-        MSG_CONFIRM, (const struct sockaddr *) &sock_client_.dest_addr,  
-            sizeof(sock_client_.dest_addr)); 
-    if (status < 0) RCLCPP_INFO(this->get_logger(), "Send error");
-    else RCLCPP_INFO(this->get_logger(), "Send successfully");
+    status = sendto(udp_sock_clnt_.fd, (const char *)msg, len, 
+        MSG_CONFIRM, (const struct sockaddr *) &udp_sock_clnt_.dest_addr,  
+            sizeof(udp_sock_clnt_.dest_addr)); 
+    if (status < 0) RCLCPP_ERROR(this->get_logger(), "UDP: Send data error");
+    else RCLCPP_INFO(this->get_logger(), "UDP: Send data successfully");
 
     return status;
+}
+
+void HdRadarNode::CanServerInit()
+{
+    // CAN Setup
+    RCLCPP_INFO(this->get_logger(), "CAN: Device id: %s",
+                can_device_id_.c_str());
+
+    can_sock_srv_.fd = socket(PF_CAN, SOCK_RAW, CAN_RAW);
+    strcpy(can_sock_srv_.ifr.ifr_name, can_device_id_.c_str());
+    ioctl(can_sock_srv_.fd, SIOCGIFINDEX, &can_sock_srv_.ifr);
+
+    can_sock_srv_.addr.can_family = AF_CAN;
+    can_sock_srv_.addr.can_ifindex = can_sock_srv_.ifr.ifr_ifindex;
+    if (bind(can_sock_srv_.fd , 
+        (struct sockaddr *)&can_sock_srv_.addr, sizeof(can_sock_srv_.addr))) {
+        RCLCPP_ERROR(this->get_logger(), "CAN: Bind failed");
+        can_server_retval_ = -1;
+    }
+}
+
+void HdRadarNode::CanServerStart() 
+{
+    can_frame can_buf;
+    ssize_t buf_len;
+
+    RCLCPP_INFO(this->get_logger(), "CAN: Starting server");
+    while (rclcpp::ok()) {
+        buf_len = read(can_sock_srv_.fd, &can_buf, sizeof(can_frame));
+        if (buf_len < 0) {
+            RCLCPP_ERROR(this->get_logger(), "UDP: Buff len ERROR");
+            continue;
+        }
+        hd_radar_can_.ParsePcl(&can_buf);
+    }
 }
 
 HdRadarNode::HdRadarNode() : Node("hd_radar_node")
@@ -290,6 +347,7 @@ HdRadarNode::HdRadarNode() : Node("hd_radar_node")
     // Read ros parameters
     ReadParameters();
     RCLCPP_INFO(this->get_logger(), "frame_id_:%s", frame_id_.c_str());
+   
     // Init modules
     hd_radar_pcl_.InitParams(&frame_id_, &check_crc16_, this);
     hd_radar_pcl_.BindStatCallback([this]() { HdRadarNode::PublishPclStat(); });
@@ -298,6 +356,9 @@ HdRadarNode::HdRadarNode() : Node("hd_radar_node")
     hd_radar_raw_.BindCallback([this]() { HdRadarNode::PublishRaw(); });
     hd_radar_heat_.InitParams(&frame_id_, this, &img_min_val_, &img_max_val_);
     hd_radar_heat_.BindCallback([this]() { HdRadarNode::PublishHeat(); });
+    hd_radar_can_.InitParams(&frame_id_, this);
+    hd_radar_can_.BindStatCallback([this]() { HdRadarNode::PublishPclStatC(); });
+    hd_radar_can_.BindDynCallback([this]() { HdRadarNode::PublishPclDynC(); });
 
     // Create publishers
     rclcpp::SensorDataQoS qos;
@@ -313,6 +374,11 @@ HdRadarNode::HdRadarNode() : Node("hd_radar_node")
     pub_msg_heat_img_ = create_publisher<sensor_msgs::msg::Image>(
                         topic_ + "/heat_img", qos);
 
+    pub_msg_pcl_stat_c_  = create_publisher<sensor_msgs::msg::PointCloud2>(
+                                topic_ + "/points/static_c", qos);
+    pub_msg_pcl_dyn_c_  = create_publisher<sensor_msgs::msg::PointCloud2>(
+                                topic_ + "/points/dynamic_c", qos);
+
     // Create services
     srv_get_raw_ = this->create_service<hd_radar_interfaces::srv::GetRaw>(
         frame_id_ + "_get_raw", std::bind(&HdRadarNode::SrvGetRawClb, this,
@@ -326,13 +392,28 @@ HdRadarNode::HdRadarNode() : Node("hd_radar_node")
     srv_set_mode_ = this->create_service<hd_radar_interfaces::srv::SetMode>(
         frame_id_ + "_set_mode", std::bind(&HdRadarNode::SrvSetModeClb, this,
                                 std::placeholders::_1, std::placeholders::_2));
-    // Udp server/client init
+
+    // Udp, Can servers/clients init
     UdpServerInit();
     UdpClientInit();
+    CanServerInit();
 
     // Start Udp server
-    std::thread thrd_udp_server(&HdRadarNode::UdpServerStart, this);
-    thrd_udp_server.detach(); 
+    if (udp_server_retval_ == 0){
+        std::thread thrd_udp_server(&HdRadarNode::UdpServerStart, this);
+        thrd_udp_server.detach();
+    }
+
+    // Start Can server
+    if (can_server_retval_ == 0){
+        std::thread thrd_can_server(&HdRadarNode::CanServerStart, this);
+        thrd_can_server.detach();
+    }
 }
 
-HdRadarNode::~HdRadarNode(){};
+HdRadarNode::~HdRadarNode()
+{
+    close(udp_sock_srv_.fd);
+    close(udp_sock_clnt_.fd);
+    close(can_sock_srv_.fd);
+};

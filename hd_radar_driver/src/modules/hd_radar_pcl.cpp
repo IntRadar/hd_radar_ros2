@@ -10,13 +10,12 @@ void HdRadarPcl::BindDynCallback(std::function<void()> func)
 }
 void HdRadarPcl::ParsePcl(char * buffer, size_t buf_len)
 {
-    RCLCPP_DEBUG(node_->get_logger(),"Parsing PCL message");
-    memset(&msg_pcl_, 0, sizeof(msg_pcl_t));
+    RCLCPP_DEBUG(node_->get_logger(),"UDP: Parsing PCL message");
+    memset(&msg_pcl_, 0, sizeof(udp_msg_pcl_t));
     memcpy(&msg_pcl_, buffer, buf_len);
-    // memset(&buffer, 0, sizeof(msg_pcl_t));
 
     uint16_t crc16 = CRC16Get(reinterpret_cast<void*>(msg_pcl_.payload),
-                    msg_pcl_.pcl_header.udp_pnts_num*sizeof(pcl_data_t));
+                    msg_pcl_.pcl_header.udp_pnts_num*sizeof(udp_pcl_data_t));
     RCLCPP_DEBUG(node_->get_logger(), "crc16: %d, crc16 from radar: %d",
                 crc16, msg_pcl_.pcl_header.crc16);
 
@@ -28,7 +27,6 @@ void HdRadarPcl::ParsePcl(char * buffer, size_t buf_len)
     if (msg_pcl_.pcl_header.frame_cnt != pcl_cur_frame_ ||
         msg_pcl_.pcl_header.pcl_type != pcl_cur_cloud_) {
         if (pcl_pnt_received_ != 0) {
-        RCLCPP_INFO(node_->get_logger(), "Publish 1");
         PublishPcl();
         }
         time_stamp_pcl_ = node_->now();
@@ -47,7 +45,6 @@ void HdRadarPcl::ParsePcl(char * buffer, size_t buf_len)
     }
 
     if (msg_pcl_.pcl_header.udp_idx == msg_pcl_.pcl_header.udp_total) {
-    //   RCLCPP_INFO(this->get_logger(), "Publish 2: %d", msg_pcl_.pcl_header.udp_pnts_num);
         PublishPcl();
         pcl_pnt_received_ = 0;
         pcl_pnts_in_frame_.clear();
@@ -57,10 +54,12 @@ void HdRadarPcl::ParsePcl(char * buffer, size_t buf_len)
 void HdRadarPcl::PublishPcl() 
 {
     if (enable_ntp_) {
-        time_stamp_pcl_ = rclcpp::Time(msg_pcl_.pcl_header.tv_usec *
-                                         static_cast<uint64_t>(1e3));
+        
+        time_stamp_radar_ = (msg_pcl_.pcl_header.tv_usec_lsb << 8) | 
+                            (msg_pcl_.pcl_header.tv_usec_msb);
+        time_stamp_pcl_ = rclcpp::Time(time_stamp_radar_ *
+                                      static_cast<uint64_t>(1e3));
         }
-    // else time_stamp_pcl_ = this->now();
 
     // PointCloud fields initialization
     FillPcl();
@@ -115,7 +114,7 @@ void HdRadarPcl::FillPcl()
         v = point.velocity;
         self_v = msg_pcl_.pcl_header.self_velocity;
 
-        //RCLCPP_INFO(node_->get_logger(), "X: %f Y: %f Z: %f V: %f", x, y, z, v);
+        // RCLCPP_INFO(node_->get_logger(), "X: %f Y: %f Z: %f V: %f", x, y, z, v);
 
         *iterX = static_cast<float>(std::round(x*1000) / 1000);
         *iterY = static_cast<float>(std::round(y*1000) / 1000);
@@ -155,7 +154,6 @@ HdRadarPcl::HdRadarPcl()
     "self_v", 1, sensor_msgs::msg::PointField::FLOAT32, 
     "snr", 1, sensor_msgs::msg::PointField::FLOAT32, 
     "rcs", 1, sensor_msgs::msg::PointField::FLOAT32);
-
 }
 
 HdRadarPcl::~HdRadarPcl()
