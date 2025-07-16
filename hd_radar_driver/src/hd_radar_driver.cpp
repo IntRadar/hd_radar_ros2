@@ -40,38 +40,55 @@ void HdRadarNode::ReadParameters()
 
 void HdRadarNode::PublishPclStat() 
 {
-    RCLCPP_INFO(this->get_logger(), "UDP: Pcl static frame collected");
+    RCLCPP_DEBUG(this->get_logger(), "UDP: Pcl static frame collected");
+    mtx_.lock();
+    pcl_stat_cnt_++;
+    mtx_.unlock();
     pub_msg_pcl_stat_->publish(hd_radar_pcl_.msg_pcl2_);
 }
 
 void HdRadarNode::PublishPclDyn() 
 {
-    RCLCPP_INFO(this->get_logger(), "UDP: Pcl dynamic frame collected");
+    RCLCPP_DEBUG(this->get_logger(), "UDP: Pcl dynamic frame collected");
+    mtx_.lock();
+    pcl_dyn_cnt_++;
+    mtx_.unlock();
     pub_msg_pcl_dyn_->publish(hd_radar_pcl_.msg_pcl2_);
 }
 
 void HdRadarNode::PublishPclStatC() 
 {
-    RCLCPP_INFO(this->get_logger(), "CAN: Pcl static frame collected");
+    RCLCPP_DEBUG(this->get_logger(), "CAN: Pcl static frame collected");
+    mtx_.lock();
+    pcl_stat_c_cnt_++;
+    mtx_.unlock();
     pub_msg_pcl_stat_c_->publish(hd_radar_can_.msg_pcl2_);
 }
 
 void HdRadarNode::PublishPclDynC() 
 {
-    RCLCPP_INFO(this->get_logger(), "CAN: Pcl dynamic frame collected");
+    RCLCPP_DEBUG(this->get_logger(), "CAN: Pcl dynamic frame collected");
+    mtx_.lock();
+    pcl_dyn_c_cnt_++;
+    mtx_.unlock();
     pub_msg_pcl_dyn_c_->publish(hd_radar_can_.msg_pcl2_);
 }
 
 void HdRadarNode::PublishRaw() 
 {
-    RCLCPP_INFO(this->get_logger(), "UDP: Raw frame collected");
+    RCLCPP_DEBUG(this->get_logger(), "UDP: Raw frame collected");
+    mtx_.lock();
+    raw_cnt_++;
+    mtx_.unlock();
     pub_msg_raw_->publish(hd_radar_raw_.msg_raw_hd_);
 }
 
 void HdRadarNode::PublishHeat()
 {
-    RCLCPP_INFO(this->get_logger(), "UDP: Heat frame collected");
-
+    RCLCPP_DEBUG(this->get_logger(), "UDP: Heat frame collected");
+    mtx_.lock();
+    heat_cnt_++;
+    mtx_.unlock();
     pub_msg_heat_->publish(hd_radar_heat_.msg_heat_hd_);
     pub_msg_heat_img_->publish(*hd_radar_heat_.msg_img_);
 }
@@ -240,7 +257,7 @@ void HdRadarNode::UdpServerStart()
         if (buf_len < 0) {
             RCLCPP_ERROR(this->get_logger(), "UDP: Buff len ERROR");
             continue;
-        }
+        }  
 
         memcpy(&pre_header, udp_buf, sizeof(pre_header));
 
@@ -342,6 +359,16 @@ void HdRadarNode::CanServerStart()
     }
 }
 
+void HdRadarNode::TimerCallback()
+{
+    mtx_.lock();
+    RCLCPP_INFO(this->get_logger(), 
+    "PCL_STAT %ld PCL_DYN %ld PCL_STAT_C %ld PCL_DYN_C %ld RAW %ld HEAT %ld",
+    pcl_stat_cnt_, pcl_dyn_cnt_, pcl_stat_c_cnt_, pcl_dyn_c_cnt_, raw_cnt_,
+    heat_cnt_);
+    mtx_.unlock();
+}
+
 HdRadarNode::HdRadarNode() : Node("hd_radar_node")
 {
     // Read ros parameters
@@ -362,13 +389,16 @@ HdRadarNode::HdRadarNode() : Node("hd_radar_node")
 
     // Create publishers
     rclcpp::SensorDataQoS qos;
+    rclcpp::SensorDataQoS qos_raw;
+    qos.reliability(RMW_QOS_POLICY_RELIABILITY_BEST_EFFORT);
+    qos_raw.reliability(RMW_QOS_POLICY_RELIABILITY_RELIABLE);
 
     pub_msg_pcl_stat_  = create_publisher<sensor_msgs::msg::PointCloud2>(
                         topic_ + "/points/static", qos);
     pub_msg_pcl_dyn_ = create_publisher<sensor_msgs::msg::PointCloud2>(
                         topic_ + "/points/dynamic", qos);
     pub_msg_raw_ = create_publisher<hd_radar_interfaces::msg::Raw>(
-                        topic_ + "/raw", qos);
+                        topic_ + "/raw", qos_raw);
     pub_msg_heat_ = create_publisher<hd_radar_interfaces::msg::Heat>(
                         topic_ + "/heat", qos);
     pub_msg_heat_img_ = create_publisher<sensor_msgs::msg::Image>(
@@ -398,6 +428,9 @@ HdRadarNode::HdRadarNode() : Node("hd_radar_node")
     UdpClientInit();
     CanServerInit();
 
+    timer_ = this->create_wall_timer(std::chrono::milliseconds(1000),
+                                std::bind(&HdRadarNode::TimerCallback, this));
+    
     // Start Udp server
     if (udp_server_retval_ == 0){
         std::thread thrd_udp_server(&HdRadarNode::UdpServerStart, this);

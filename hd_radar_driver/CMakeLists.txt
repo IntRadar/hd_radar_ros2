@@ -33,13 +33,11 @@ ament_target_dependencies(
 ament_export_dependencies(
   rclcpp
   sensor_msgs
-  # LibSeriale
 )
 
 target_link_libraries(hd_radar_node
   ${rclcpp_LIBRARIES}
   ${sensor_msgs_LIBRARIES}
-  # ${LibSerial_LIBRARIES}
 )
 
 install(TARGETS 
@@ -53,7 +51,6 @@ install(DIRECTORY launch config rviz rqt
 
 include_directories(
   include
-  # /usr/include/libserial
   )
 ament_export_include_directories(include)
 

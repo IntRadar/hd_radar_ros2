@@ -118,7 +118,7 @@ void HdRadarCan::ParsePcl(can_frame* can_buffer)
       }
       else if (pre_hdr->msg_id != CAN_PCL_MSG_ID) {
         RCLCPP_INFO(node_->get_logger(),
-           "ERROR: Wrong Can Msg ID: 0x%.2X, need 0x%.2X",
+           "CAN: Wrong Can Msg ID: 0x%.2X, need 0x%.2X",
             pre_hdr->msg_id, CAN_PCL_MSG_ID);
         return;
       }
@@ -126,14 +126,14 @@ void HdRadarCan::ParsePcl(can_frame* can_buffer)
       /* Here we check for data length mismatch */ 
       if (can_data_remains_ > 0) {
         RCLCPP_INFO(node_->get_logger(),
-            "Data inconsistency - new data before publish, data remains = %d",
-            can_data_remains_);
+        "CAN: Data inconsistency - new data before publish, data remains = %d",
+        can_data_remains_);
 
         PublishPcl();
       }
       else if (can_data_remains_ < 0) {
         RCLCPP_INFO(node_->get_logger(),
-        "Data inconsistency - new data before publish, data remains = %d",
+        "CAN: Data inconsistency - new data before publish, data remains = %d",
         -can_data_remains_);
         PublishPcl();
       }

@@ -60,6 +60,8 @@ private:
     udp_sock_data_t udp_sock_srv_, udp_sock_clnt_;
     can_sock_data_t can_sock_srv_;
 
+    std::mutex mtx_;
+
     HdRadarPcl hd_radar_pcl_;
     HdRadarRaw hd_radar_raw_;
     HdRadarHeat hd_radar_heat_;
@@ -67,6 +69,15 @@ private:
 
     int32_t udp_server_retval_{0};
     int32_t can_server_retval_{0};
+
+    rclcpp::TimerBase::SharedPtr timer_;
+
+    uint64_t pcl_stat_cnt_{0};
+    uint64_t pcl_dyn_cnt_{0};
+    uint64_t pcl_stat_c_cnt_{0};
+    uint64_t pcl_dyn_c_cnt_{0};
+    uint64_t raw_cnt_{0};
+    uint64_t heat_cnt_{0};
 
     // Services
     rclcpp::Service<GetRaw>::SharedPtr srv_get_raw_;
@@ -102,6 +113,8 @@ private:
     void PublishHeat();
     void PublishPclStatC();
     void PublishPclDynC();
+
+    void TimerCallback();
 
     void SrvGetRawClb(
         const std::shared_ptr<GetRaw::Request> request,

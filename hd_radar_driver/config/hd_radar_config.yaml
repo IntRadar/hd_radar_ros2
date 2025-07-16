@@ -7,11 +7,27 @@ sensors:
         send_port: 35200
         check_crc16: false
         can_device_id: "can0"
+        transform:
+            parent_frame: "base_link"
+            x: 0.0
+            y: 0.0
+            z: 0.0
+            roll: 0.0
+            pitch: 0.0
+            yaw: 0.0
     # sensor_1:
-    #     host_ip: "192.168.1.100"
-    #     sensor_ip: "192.168.1.50"
-    #     multicast_ip: "239.168.1.50"
-    #     receive_port: 25200
-    #     send_port: 35200
+    #     host_ip: "192.168.2.100"
+    #     sensor_ip: "192.168.2.50"
+    #     multicast_ip: "239.168.2.50"
+    #     receive_port: 25201
+    #     send_port: 35201
     #     check_crc16: false
-    #     can_device_id: "can0"
+    #     can_device_id: "can1"
+    #     transform:
+    #         parent_frame: "base_link" 
+    #         x: 0.0
+    #         y: 0.0
+    #         z: 0.0
+    #         roll: 0.0
+    #         pitch: 0.0
+    #         yaw: 0.0

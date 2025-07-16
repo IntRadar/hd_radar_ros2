@@ -1,7 +1,7 @@
 #!/bin/bash
 
 image_name="intradar/hd_radar_ros2"
-tag="1.1.0"
+tag="1.2.0"
 container_name="hd_radar"
 
 docker run -it -d --rm \

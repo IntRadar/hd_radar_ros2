@@ -17,11 +17,11 @@ void HdRadarHeat::ParseHeat(char * buffer, size_t buf_len)
         std::fill(heat_full_.begin(), heat_full_.end(), 0);
     }
     // RCLCPP_INFO(node_->get_logger(), "data %d ", buffer[0]);
-    RCLCPP_DEBUG(node_->get_logger(), "frame_current %d curr_frame %ld",
+    RCLCPP_DEBUG(node_->get_logger(), "HEAT: frame_current %d curr_frame %ld",
     msg_heat_.heat_header.frame_cnt, heat_cur_frame_);
-    RCLCPP_DEBUG(node_->get_logger(), "idx %d total %d",
+    RCLCPP_DEBUG(node_->get_logger(), "HEAT: idx %d total %d",
     msg_heat_.heat_header.udp_idx, msg_heat_.heat_header.udp_total);
-    RCLCPP_DEBUG(node_->get_logger(), "map_h_size %d map_v_size %d",
+    RCLCPP_DEBUG(node_->get_logger(), "HEAT: map_h_size %d map_v_size %d",
     msg_heat_.heat_header.map_h_size, msg_heat_.heat_header.map_v_size);
 
     if (msg_heat_.heat_header.frame_cnt != heat_cur_frame_) {
@@ -88,7 +88,7 @@ void HdRadarHeat::FillHeat()
     std_msgs::msg::Header header_;
 
     // RCLCPP_INFO(node_->get_logger(), "frame_id: %s", frame_id.c_str());
-    RCLCPP_INFO(node_->get_logger(), "img_min_val_: %f, img_max_val_: %f",
+    RCLCPP_DEBUG(node_->get_logger(), "HEAT: img_min_val_: %f, img_max_val_: %f",
                 img_min_val_, img_max_val_);
     
     header_.frame_id = frame_id_;
