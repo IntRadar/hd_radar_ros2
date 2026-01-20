@@ -20,8 +20,9 @@ public:
     // Pointer to hd_driver_node
     rclcpp::Node * node_;
 
-    void InitParams(std::string * frame_id, bool * check_crc16,
-                    rclcpp::Node * node);
+    void InitParams(std::string * frame_id, bool * check_crc16, 
+                            bool * ntp_sync, std::mutex * mtx,
+                            rclcpp::Node * node);
 
     //Bind callback function
     void BindStatCallback(std::function<void()> func);
@@ -31,15 +32,16 @@ public:
 
     HdRadarPcl();
     ~HdRadarPcl();
+
 private:
     bool check_crc16_;
-    bool enable_ntp_;
+    bool *ntp_sync_;
     uint32_t pcl_pnt_received_{0};
     int64_t pcl_cur_frame_{-1};
     int64_t pcl_cur_cloud_{-1};
     std::vector<udp_pcl_data_t> pcl_pnts_in_frame_;
-    uint64_t time_stamp_radar_;
-    rclcpp::Time time_stamp_pcl_;
+    std::mutex *mtx_;
+    // uint64_t time_stamp_radar_prev_{0};
         
     // Messages
     udp_msg_pcl_t msg_pcl_;

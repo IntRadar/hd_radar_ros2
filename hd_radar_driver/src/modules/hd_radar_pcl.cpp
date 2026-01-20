@@ -14,6 +14,11 @@ void HdRadarPcl::ParsePcl(char * buffer, size_t buf_len)
     memset(&msg_pcl_, 0, sizeof(udp_msg_pcl_t));
     memcpy(&msg_pcl_, buffer, buf_len);
 
+    uint16_t udp_idx = msg_pcl_.pcl_header.udp_idx;
+    
+    //Backward compatibility with version 1.2
+    if ((msg_pcl_.pre_header.version&0x0F) < 3) udp_idx -= 1;
+
     uint16_t crc16 = CRC16Get(reinterpret_cast<void*>(msg_pcl_.payload),
                     msg_pcl_.pcl_header.udp_pnts_num*sizeof(udp_pcl_data_t));
     RCLCPP_DEBUG(node_->get_logger(), "crc16: %d, crc16 from radar: %d",
@@ -23,13 +28,41 @@ void HdRadarPcl::ParsePcl(char * buffer, size_t buf_len)
         RCLCPP_ERROR(node_->get_logger(), "Wrong crc16");
         exit(EXIT_FAILURE);
     }
+    // Compare radar frame timestamp for first dgram
+    if (msg_pcl_.pcl_header.frame_cnt != pcl_cur_frame_) {
+        // NTP sync check
+        uint64_t high_bytes, time_stamp_radar;
+        high_bytes = static_cast<uint64_t>(msg_pcl_.pcl_header.tv_usec_msb);
+        time_stamp_radar = (high_bytes << 32 |
+                        static_cast<uint64_t>(msg_pcl_.pcl_header.tv_usec_lsb));
+        uint64_t delta_time = ((uint64_t)(node_->now().nanoseconds()/1000) -
+                                time_stamp_radar);
+        // RCLCPP_INFO(node_->get_logger(), "PCL: delta: %ld", delta_time);
+
+        // Check if delta_time greater then 1 sec
+        if (delta_time > 1000000) {
+            msg_pcl2_.header.stamp = node_->now();
+            mtx_->lock();
+            *ntp_sync_ = false;
+            mtx_->unlock();
+        }
+        else {
+            msg_pcl2_.header.stamp = rclcpp::Time(time_stamp_radar * 
+                                            static_cast<uint64_t>(1e3));
+            mtx_->lock();
+            *ntp_sync_ = true;
+            mtx_->unlock();
+        }
+    }
 
     if (msg_pcl_.pcl_header.frame_cnt != pcl_cur_frame_ ||
         msg_pcl_.pcl_header.pcl_type != pcl_cur_cloud_) {
-        if (pcl_pnt_received_ != 0) {
-        PublishPcl();
-        }
-        time_stamp_pcl_ = node_->now();
+        
+        // Publish when udp dgrams dropped
+        // if (pcl_pnt_received_ != 0) {
+        //     PublishPcl();
+        // }
+
         pcl_pnt_received_ = 0;
         pcl_pnts_in_frame_.clear();
         pcl_cur_frame_ = msg_pcl_.pcl_header.frame_cnt;
@@ -43,8 +76,8 @@ void HdRadarPcl::ParsePcl(char * buffer, size_t buf_len)
     if (pcl_pnts_in_frame_.size() > pcl_pnt_received_) {
         pcl_pnts_in_frame_.resize(pcl_pnt_received_);
     }
-
-    if (msg_pcl_.pcl_header.udp_idx == msg_pcl_.pcl_header.udp_total) {
+   
+    if ((udp_idx + 1) == msg_pcl_.pcl_header.udp_total) {
         PublishPcl();
         pcl_pnt_received_ = 0;
         pcl_pnts_in_frame_.clear();
@@ -53,40 +86,24 @@ void HdRadarPcl::ParsePcl(char * buffer, size_t buf_len)
 
 void HdRadarPcl::PublishPcl() 
 {
-    if (enable_ntp_) {
-        
-        time_stamp_radar_ = (msg_pcl_.pcl_header.tv_usec_lsb << 8) | 
-                            (msg_pcl_.pcl_header.tv_usec_msb);
-        time_stamp_pcl_ = rclcpp::Time(time_stamp_radar_ *
-                                      static_cast<uint64_t>(1e3));
-        }
-
     // PointCloud fields initialization
     FillPcl();
 
     // Publish message   
     if (pcl_cur_cloud_ == 0) {
         PubStatCallback();
-    } else {
+    } 
+    else {
         PubDynCallback();
     }
-    
-    // RCLCPP_INFO(node_->get_logger(),"Targets were founded: %d Type: %d",
-    //             pcl_pnt_received_, pcl_cur_cloud_);
 }
 
 void HdRadarPcl::FillPcl() 
 {
     //Msg header
-    msg_pcl2_.header = std_msgs::msg::Header();
-    msg_pcl2_.header.stamp = time_stamp_pcl_;
     msg_pcl2_.header.frame_id = frame_id_;
-
     msg_pcl2_.height = 1;
     msg_pcl2_.width = pcl_pnts_in_frame_.size();
-
-    // RCLCPP_INFO(this->get_logger(), "msg_pcl2_.width: %d", msg_pcl2_.width );
-
     msg_pcl2_.is_dense = true;
 
     //Total number of bytes per point
@@ -134,11 +151,14 @@ void HdRadarPcl::FillPcl()
         }
 }
 
-void HdRadarPcl::InitParams(std::string * frame_id, bool * check_crc16,
+void HdRadarPcl::InitParams(std::string * frame_id, bool * check_crc16, 
+                            bool * ntp_sync, std::mutex * mtx,
                             rclcpp::Node * node) 
 {
         frame_id_ = *frame_id;
         check_crc16_ = *check_crc16;
+        ntp_sync_ = ntp_sync;
+        mtx_ = mtx;
         node_ = node;
 }
 

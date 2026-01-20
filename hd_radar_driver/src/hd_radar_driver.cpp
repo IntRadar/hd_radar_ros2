@@ -24,12 +24,17 @@ void HdRadarNode::ReadParameters()
     this->declare_parameter("send_port", 3500);
     send_port_ = this->get_parameter("send_port").as_int();
 
-    this->declare_parameter("min_val", 0.0);
-    img_min_val_ = this->get_parameter("min_val").as_double();
+    this->declare_parameter("img_min_val", 0.0);
+    img_min_val_ = this->get_parameter("img_min_val").as_double();
 
-    this->declare_parameter("max_val", 1.0e4);
-    img_max_val_ = this->get_parameter("max_val").as_double();
+    this->declare_parameter("img_max_val", 120.0);
+    img_max_val_ = this->get_parameter("img_max_val").as_double();
 
+    this->declare_parameter("img_pow", 4.0);
+    img_pow_ = this->get_parameter("img_pow").as_double();
+
+    this->declare_parameter("img_max_rng", 25.0);
+    img_max_rng_ = this->get_parameter("img_max_rng").as_double();
 
     this->declare_parameter("check_crc16", false);
     check_crc16_ = this->get_parameter("check_crc16").as_bool();
@@ -267,7 +272,7 @@ void HdRadarNode::UdpServerStart()
             "UDP: Incompatible protocol version: v %d.%d, expected v %d.%d",
             ((pre_header.version&0xF0) >> 4), (pre_header.version&0x0F),
             ((UDP_PROTOCOL_VER&0xF0) >> 4), (UDP_PROTOCOL_VER&0x0F));
-            continue;
+            // continue;
         }
 
         switch (pre_header.msg_id) {
@@ -363,8 +368,8 @@ void HdRadarNode::TimerCallback()
 {
     mtx_.lock();
     RCLCPP_INFO(this->get_logger(), 
-    "PCL_STAT %ld PCL_DYN %ld PCL_STAT_C %ld PCL_DYN_C %ld RAW %ld HEAT %ld",
-    pcl_stat_cnt_, pcl_dyn_cnt_, pcl_stat_c_cnt_, pcl_dyn_c_cnt_, raw_cnt_,
+    "NTP_SYNC %d PCL_STAT %ld PCL_DYN %ld PCL_STAT_C %ld PCL_DYN_C %ld RAW %ld HEAT %ld",
+    ntp_sync_, pcl_stat_cnt_, pcl_dyn_cnt_, pcl_stat_c_cnt_, pcl_dyn_c_cnt_, raw_cnt_,
     heat_cnt_);
     mtx_.unlock();
 }
@@ -376,12 +381,14 @@ HdRadarNode::HdRadarNode() : Node("hd_radar_node")
     RCLCPP_INFO(this->get_logger(), "frame_id_:%s", frame_id_.c_str());
    
     // Init modules
-    hd_radar_pcl_.InitParams(&frame_id_, &check_crc16_, this);
+    hd_radar_pcl_.InitParams(&frame_id_, &check_crc16_, &ntp_sync_, &mtx_, this);
     hd_radar_pcl_.BindStatCallback([this]() { HdRadarNode::PublishPclStat(); });
     hd_radar_pcl_.BindDynCallback([this]() { HdRadarNode::PublishPclDyn(); });
-    hd_radar_raw_.InitParams(&frame_id_, &check_crc16_, this);
+    hd_radar_raw_.InitParams(&frame_id_, &check_crc16_, &ntp_sync_, &mtx_, this);
     hd_radar_raw_.BindCallback([this]() { HdRadarNode::PublishRaw(); });
-    hd_radar_heat_.InitParams(&frame_id_, this, &img_min_val_, &img_max_val_);
+    hd_radar_heat_.InitParams(&frame_id_, &ntp_sync_, &mtx_, this,
+                              &img_min_val_, &img_max_val_,
+                              &img_pow_, &img_max_rng_);
     hd_radar_heat_.BindCallback([this]() { HdRadarNode::PublishHeat(); });
     hd_radar_can_.InitParams(&frame_id_, this);
     hd_radar_can_.BindStatCallback([this]() { HdRadarNode::PublishPclStatC(); });

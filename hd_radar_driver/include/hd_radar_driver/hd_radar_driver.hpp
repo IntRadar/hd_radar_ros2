@@ -44,6 +44,7 @@ class HdRadarNode : public rclcpp::Node
 public:
     HdRadarNode();
     ~HdRadarNode();
+
 private:
     std::string topic_;
     std::string frame_id_;
@@ -54,7 +55,10 @@ private:
     uint send_port_;
     double img_min_val_;
     double img_max_val_;
+    double img_pow_;
+    double img_max_rng_;
     bool check_crc16_;
+    bool ntp_sync_ = false;
     std::string can_device_id_;
 
     udp_sock_data_t udp_sock_srv_, udp_sock_clnt_;
@@ -128,7 +132,6 @@ private:
     void SrvSetModeClb(
         const std::shared_ptr<SetMode::Request> request,
         const std::shared_ptr<SetMode::Response> response);
-
 };
 
 #endif

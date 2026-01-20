@@ -30,7 +30,6 @@ class HdRadarCan
   ~HdRadarCan();
 
  private:
-
   // ROS2
   rclcpp::Time time_stamp_;
   

@@ -10,7 +10,9 @@ class HdRadarRaw
 {
 public:
     std::string frame_id_;
-    
+    bool *ntp_sync_;
+    std::mutex *mtx_;
+
     // Messages
     hd_radar_interfaces::msg::Raw msg_raw_hd_;
 
@@ -18,7 +20,8 @@ public:
     rclcpp::Node * node_;
     
     void InitParams(std::string * frame_id, bool * check_crc16,
-                    rclcpp::Node * node);
+                            bool * ntp_sync, std::mutex * mtx,
+                            rclcpp::Node * node);
 
     //Bind callback function
     void BindCallback(std::function<void()> func);
@@ -27,8 +30,8 @@ public:
 
     HdRadarRaw();
     ~HdRadarRaw();
+
 private:
-    rclcpp::Time time_stamp_raw_;
     bool check_crc16_;
     // Messages
     udp_msg_raw_t msg_raw_;

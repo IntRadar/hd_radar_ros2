@@ -5,7 +5,7 @@ violet=`tput setaf 5`
 reset=`tput sgr0`
 
 path="/home/docker_radar/colcon_ws/src"
-tag="1.2.0"
+tag="1.3.0"
 
 dockerfile="Dockerfile.humble"
 image_name="intradar/hd_radar_ros2"

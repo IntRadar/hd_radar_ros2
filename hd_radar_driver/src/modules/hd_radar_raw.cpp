@@ -32,7 +32,32 @@ void HdRadarRaw::ParseRaw(char * buffer, size_t buf_len)
     }
 
     if (msg_raw_.raw_header.udp_idx == 0) {
-        time_stamp_raw_ = node_->now();
+        msg_raw_hd_.header.frame_id = frame_id_;
+
+        // NTP sync check
+        uint64_t high_bytes, time_stamp_radar;
+        high_bytes = static_cast<uint64_t>(msg_raw_.raw_header.tv_usec_msb);
+        time_stamp_radar = (high_bytes << 32 |
+                        static_cast<uint64_t>(msg_raw_.raw_header.tv_usec_lsb));
+        uint64_t delta_time = ((uint64_t)(node_->now().nanoseconds()/1000) -
+                                time_stamp_radar);
+        RCLCPP_INFO(node_->get_logger(), "RAW: delta: %ld", delta_time);
+
+        // Check if delta_time greater then 1 sec
+        if (delta_time > 1000000) {
+            msg_raw_hd_.header.stamp = node_->now();
+            mtx_->lock();
+            *ntp_sync_ = false;
+            mtx_->unlock();
+        }
+        else {
+            msg_raw_hd_.header.stamp = rclcpp::Time(time_stamp_radar * 
+                                            static_cast<uint64_t>(1e3));
+            mtx_->lock();
+            *ntp_sync_ = true;
+            mtx_->unlock();
+        }
+
         raw_cur_subframe_ = 0;
         raw_cur_frame_ = msg_raw_.raw_header.frame_cnt;
         // memset(&msg_raw_hd_.raw_data[0], 0, udp_total_reserved * UDP_PAYLOAD_SIZE);
@@ -51,16 +76,18 @@ void HdRadarRaw::ParseRaw(char * buffer, size_t buf_len)
 }
 
 void HdRadarRaw::PublishRaw() {
-    msg_raw_hd_.header.stamp = time_stamp_raw_;
-    msg_raw_hd_.header.frame_id = frame_id_;
+
     PubCallback();
 }
 
 void HdRadarRaw::InitParams(std::string * frame_id, bool * check_crc16,
+                            bool * ntp_sync, std::mutex * mtx,
                             rclcpp::Node * node) 
 {
     frame_id_ = *frame_id;
     check_crc16_ = *check_crc16;
+    ntp_sync_ = ntp_sync;
+    mtx_ = mtx;
     node_ = node;
 }
 

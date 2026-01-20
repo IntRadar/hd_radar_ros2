@@ -8,7 +8,7 @@
 
 //Compatible versions of radar protocol
 #define UDP_PROTOCOL_MAJOR 1 // 4 bit format 
-#define UDP_PROTOCOL_MINOR 2 // 4 bit format
+#define UDP_PROTOCOL_MINOR 3 // 4 bit format
 // 8 bit format b3:0 major b7:4 minor 
 #define UDP_PROTOCOL_VER (((UDP_PROTOCOL_MAJOR & 0xF) << 4) |\
 						 (UDP_PROTOCOL_MINOR & 0xF)) 

@@ -95,20 +95,19 @@ void HdRadarCan::FillPcl()
 
 void HdRadarCan::ParsePcl(can_frame* can_buffer)
 {
-  /* We treat CAN_PREHEADER_MSG_ID_OFFSET as CAN device identifier.
-   * This parameter should be modified to configurable variable to support 
-   * of multiple devices on the same CAN bus.
-   * Thre main check is performed to collect data from a specific device.
-   */
+  // We treat CAN_PREHEADER_MSG_ID_OFFSET as CAN device identifier.
+  // This parameter should be modified to configurable variable to support 
+  // of multiple devices on the same CAN bus.
+  // Thre main check is performed to collect data from a specific device.
   if ((can_buffer->can_id & 
       CAN_PREHEADER_MSG_ID_OFFSET) == CAN_PREHEADER_MSG_ID_OFFSET) {
-    /* Wait for pre-header id to find the beginning of datagram */
+    // Wait for pre-header id to find the beginning of datagram 
     if (can_buffer->can_id == CAN_PREHEADER_MSG_ID_OFFSET) {
 
       std::stringstream ss;
       can_pre_hdr_t* pre_hdr = (can_pre_hdr_t*)can_buffer->data;
   
-      /* Here we check for any protocol mismatch */
+      // Here we check for any protocol mismatch
       if (pre_hdr->version != CAN_PROTOCOL_VER) {
         RCLCPP_INFO(node_->get_logger(), 
             "CAN: Incompatible protocol version: v %d.%d, expected v %d.%d",
@@ -123,7 +122,7 @@ void HdRadarCan::ParsePcl(can_frame* can_buffer)
         return;
       }
 
-      /* Here we check for data length mismatch */ 
+      // Here we check for data length mismatch
       if (can_data_remains_ > 0) {
         RCLCPP_INFO(node_->get_logger(),
         "CAN: Data inconsistency - new data before publish, data remains = %d",
@@ -137,7 +136,7 @@ void HdRadarCan::ParsePcl(can_frame* can_buffer)
         -can_data_remains_);
         PublishPcl();
       }
-      /* In any case reset offset and set data reminder length for new data */
+      // In any case reset offset and set data reminder length for new data
       can_data_remains_ = pre_hdr->length;
       can_data_offset_ = 0U;
     }
